@@ -2,3 +2,5 @@
 __pycache__/
 *.pyc
 data/
+reference/
+resultats/oracle_dev.jsonl
