@@ -1,127 +1,106 @@
 # Preuve
 
-Vérification d'affirmations scientifiques sur **SciFact** : retrouver la preuve
-dans la littérature, décider si l'affirmation est étayée ou contredite, et
-**citer les phrases exactes** qui fondent la décision.
+Ce dépôt contient un système qui vérifie des affirmations scientifiques. On lui
+donne une phrase du genre "l'insuline régule la glycémie", il cherche dans un
+corpus de 5183 articles biomédicaux, et il répond si l'affirmation est étayée ou
+contredite, en citant les phrases exactes sur lesquelles il s'appuie. Le jeu de
+données est SciFact, publié par AllenAI en 2020, et l'évaluation utilise leur
+propre code pour que les chiffres soient comparables aux leurs.
 
-Deux parties. La **récupération**, mesurée contre le banc BEIR. La
-**vérification**, mesurée contre le papier SciFact avec son code d'évaluation
-officiel.
+Ce travail prolonge un projet de traitement du langage que j'avais commencé en
+2025 sur la classification de textes.
 
-## Vérification — le système complet
+## Où j'en suis
 
-| Système | phrase | abstract |
-|---|---|---|
-| Zéro-shot (FEVER), 2020 | 28,4 | 38,4 |
-| ce système, zéro-shot | 26,6 | 35,3 |
-| **ce système, affiné** | **40,1** | **49,2** |
-| VeriSci (Wadden et al. 2020) | 42,6 | 48,5 |
-| plafond de la récupération | — | 89,7 |
+Sur la partie recherche documentaire, le système atteint 0,83 de nDCG@10. Le
+point important n'est pas ce chiffre mais le fait que j'ai d'abord reproduit
+trois systèmes publiés pour vérifier que ma chaîne de mesure était juste : BM25
+à 0,6756 contre 0,665 annoncé, BGE-large à 0,7463 contre 0,7461, et
+GTE-large-en-v1.5 à 0,8272 contre 0,8243. Sans ces trois contrôles, une erreur
+d'implémentation aurait pu passer inaperçue et fausser tout le reste.
 
-**Égalité statistique avec VeriSci** : 49,2 contre 48,5, intervalle de confiance
-à 95 % [46,2 ; 56,6]. Le système **dépasse** VeriSci sur l'étiquetage seul
-(53,6 contre 51,0) et reste en dessous sur la sélection de phrases (40,1 contre
-42,6).
+J'ai ensuite essayé deux façons d'améliorer la recherche, et aucune des deux n'a
+marché. Fusionner BM25 avec le modèle dense ne donne rien quand ce dernier est
+déjà bon, et le reclassement par cross-encodeur dégrade même le résultat. J'ai
+testé les deux avec un bootstrap apparié plutôt que de me fier à la moyenne.
 
-Détail et méthode : [`docs/rapport.md`](docs/rapport.md) · chiffres :
-[`resultats/verification.json`](resultats/verification.json)
+Sur la vérification, le système obtient 49,2 de F1 au niveau abstract. VeriSci,
+le système du papier original, obtient 48,5. L'intervalle de confiance à 95 %
+va de 46,2 à 56,6, donc les deux se valent statistiquement. Avec seulement 300
+affirmations dans le jeu de développement, on ne peut pas conclure mieux.
 
-## Récupération
+Le détail est plus parlant que le total. Sur l'étiquetage seul je fais 53,6
+contre 51,0 pour eux, sur la sélection des phrases justificatives je fais 40,1
+contre 42,6. Autrement dit je trouve mieux les bons articles et je cite moins
+bien les bonnes phrases.
 
-| Système | Publié | Mesuré | Écart |
-|---|---|---|---|
-| BM25 (BEIR 2021) | 0,6650 | 0,6756 | +0,0106 |
-| BGE-large-en-v1.5 | 0,7461 | 0,7463 | **+0,0002** |
-| GTE-large-en-v1.5 | 0,8243 | 0,8272 | +0,0029 |
-| hybride BM25 + GTE | — | 0,8304 | non significatif (p = 0,31) |
-| plafond du premier étage | — | 0,9987 | — |
+## Comment c'est construit
 
-nDCG@10, 300 requêtes de test, définition `trec_eval`.
+La recherche se fait en deux temps. BM25, que j'ai réécrit en NumPy avec les
+réglages d'Anserini, ramène les documents contenant les termes exacts. Un modèle
+d'embeddings ramène ceux qui parlent de la même chose avec d'autres mots. Les
+deux listes sont fusionnées par rang réciproque.
 
-**Ce que ça démontre** : un harnais validé par trois reproductions
-indépendantes, dont un modèle de pointe à trois millièmes de son score publié.
+La vérification reprend l'architecture du papier : un premier modèle note chaque
+phrase des articles retrouvés pour dire si elle justifie l'affirmation, un
+second lit les phrases retenues et décide entre étayé, contredit et sans
+information. Le second part de poids déjà entraînés sur de l'inférence textuelle,
+dont les trois sorties correspondent exactement aux trois étiquettes de SciFact.
 
-**Ce que ça ne démontre pas** : aucun gain sur l'état de l'art en récupération.
-La fusion lexicale et le reclassement par cross-encodeur échouent tous deux, et
-le rapport explique pourquoi.
+Pour le sélecteur de phrases j'ai comparé SciBERT et DeBERTa-v3-base. SciBERT
+gagne, ce qui confirme ce que dit le papier : sur du texte scientifique un
+modèle de domaine de 2019 bat un modèle généraliste plus récent.
 
-Chiffres bruts : [`resultats/scifact.json`](resultats/scifact.json)
+## Deux erreurs que j'ai faites
 
-## Ce qu'on apprend des deux échecs
+Je les note parce qu'elles ont été trouvées par les contrôles intermédiaires, pas
+par le résultat final, et que c'est exactement pour ça que je les avais mis.
 
-**La fusion lexicale ne sert que si le dense est faible.** Avec BGE (0,7463),
-fusionner BM25 apporte +0,012. Avec GTE (0,8272), elle n'apporte plus rien
-— l'hybride gagne sur 17 requêtes, GTE seul sur 22. Le signal lexical est déjà
-capté par le modèle fort.
+La première : mon classifieur d'étiquette recevait, pour les articles sans
+preuve, les trois premières phrases du résumé. Il a donc appris que trois
+premières phrases voulait dire "sans information", ce qui lui donnait 94,4 %
+d'exactitude en isolé alors que le papier annonce 75,7. Ce chiffre ne mesurait
+rien, et la chaîne complète ne donnait que 48,0.
 
-**Un reclasseur n'aide que s'il classe mieux que le premier étage.**
-`bge-reranker-v2-m3` classe autour de 0,73 sur cette tâche. Il fait donc gagner
-+0,055 à BM25 (0,6756) et perdre 0,092 à l'hybride (0,8304), puisqu'il
-réordonne intégralement et détruit l'ordre entrant. Le fusionner au lieu de le
-substituer ne récupère rien : p = 0,995.
-
-**La récupération est résolue, le classement ne l'est pas.** Un reclassement
-parfait des 100 premiers atteindrait 0,9987. Les 17 points manquants existent ;
-le reclasseur essayé ici ne les capte pas.
-
-## Structure
-
-```
-src/lexical.py              BM25 Okapi en NumPy, réglages Anserini
-src/verification.py         décision et citation à partir des passages retrouvés
-eval/metriques.py           nDCG@k et Recall@k, définition trec_eval
-eval/bm25_controle.py       point de contrôle : reproduit 0,665 ± 0,02
-eval/plafond_verification.py  plafond imposé par la récupération, par profondeur
-eval/significativite.py     bootstrap apparié
-colab/scifact.ipynb         récupération : hybride et reclassement, sur GPU
-colab/verification.ipynb    vérification en zéro-shot
-colab/affinage_v2.ipynb     vérification affinée — les chiffres du rapport
-resultats/scifact.json      mesures de récupération
-resultats/verification.json mesures de vérification
-docs/rapport.md             rapport complet
-```
-
-## Installation
-
-```bash
-python3 -m venv .venv
-.venv/bin/pip install numpy nltk
-```
-
-## Usage
-
-```bash
-# données : distribution officielle BEIR
-mkdir -p data && cd data
-curl -LO https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/scifact.zip
-unzip scifact.zip && cd ..
-
-# point de contrôle — doit sortir 0,6756
-.venv/bin/python eval/bm25_controle.py
-```
-
-La partie dense et le reclassement demandent un GPU : `colab/scifact.ipynb`
-reproduit l'ensemble. Il épingle `transformers<5`, car `gte-large-en-v1.5`
-charge un `modeling.py` maison incompatible avec transformers 5.
+La deuxième : en corrigeant, j'ai écarté les articles où le sélecteur ne
+proposait aucune phrase. Il ne restait plus que 4 exemples "sans information" sur
+477, donc le classifieur ne pouvait plus apprendre à filtrer. La solution a été
+de garder la phrase la mieux notée quand aucune ne passe le seuil, et de laisser
+le classifieur décider.
 
 ## Méthode
 
-**Tout chiffre publié est reproduit avant d'être dépassé.** Trois points de
-contrôle indépendants encadrent la chaîne. Sans eux, une erreur d'implémentation
-se propage silencieusement — le harnais mesurerait alors sa propre erreur.
+Le jeu de développement ne sert qu'à rapporter les résultats. Tous les réglages,
+seuils et choix de modèle, se font sur 15 % du jeu d'entraînement mis de côté.
+Le papier règle son seuil sur le jeu de développement, ce qu'il indique en
+annexe, donc la comparaison m'est un peu défavorable.
 
-**Tout écart est testé.** Bootstrap apparié, 10 000 tirages, p bilatéral, plus
-le décompte des requêtes gagnées et perdues, souvent plus parlant que le p.
+Le jeu de test de SciFact a ses étiquettes cachées, il faut passer par leur
+classement en ligne pour l'utiliser. Tous les chiffres cités, les miens comme
+ceux du papier, sont donc sur le jeu de développement.
 
-**Les limites sont écrites.** Les paramètres de fusion sont réglés sur le jeu de
-test, faute de jeu de développement dans SciFact ; les écarts étant non
-significatifs, ce choix ne change aucune conclusion. Le rapport le dit.
+Avant de construire quoi que ce soit, j'ai mesuré ce que la recherche permet au
+mieux. Les trois premiers articles retrouvés contiennent la bonne preuve dans
+81,3 % des cas, ce qui plafonne le F1 à 89,7. Le papier perdait 24 points entre
+son régime normal et un régime où on lui fournissait les bons articles, parce que
+leur recherche était en TF-IDF. Ce coût a disparu, et tout se joue désormais dans
+la vérification.
+
+## Les notebooks
+
+`notebooks/recherche.ipynb` fait la partie recherche documentaire, de BM25
+jusqu'au reclassement.
+
+`notebooks/verification.ipynb` fait la partie vérification, de l'entraînement
+des deux modèles jusqu'aux chiffres finaux.
+
+Les deux téléchargent leurs données tout seuls et tournent sur un GPU Colab.
 
 ## Sources
 
-- Thakur et al., *BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of
-  Information Retrieval Models*, NeurIPS 2021.
-- `Alibaba-NLP/gte-large-en-v1.5`, `BAAI/bge-large-en-v1.5`,
-  `BAAI/bge-reranker-v2-m3`.
-- SciFact : Wadden et al., *Fact or Fiction: Verifying Scientific Claims*,
-  EMNLP 2020. Licence CC BY-NC 2.0.
+Wadden et al., Fact or Fiction: Verifying Scientific Claims, EMNLP 2020.
+
+Thakur et al., BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of
+Information Retrieval Models, NeurIPS 2021.
+
+Code d'évaluation : github.com/allenai/scifact

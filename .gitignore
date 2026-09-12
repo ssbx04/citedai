@@ -1,6 +1,4 @@
-.venv/
-__pycache__/
-*.pyc
 data/
-reference/
-resultats/oracle_dev.jsonl
+*.json
+!notebooks/*.ipynb
+__pycache__/
