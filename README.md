@@ -1,13 +1,32 @@
 # Preuve
 
-Recherche documentaire ancrée sur **SciFact** (banc BEIR) : vérifier une
-affirmation scientifique en retrouvant la preuve dans la littérature.
+Vérification d'affirmations scientifiques sur **SciFact** : retrouver la preuve
+dans la littérature, décider si l'affirmation est étayée ou contredite, et
+**citer les phrases exactes** qui fondent la décision.
 
-Trois systèmes de référence reproduits, deux voies d'amélioration testées,
-aucune concluante. Les résultats négatifs sont établis statistiquement, pas
-affirmés.
+Deux parties. La **récupération**, mesurée contre le banc BEIR. La
+**vérification**, mesurée contre le papier SciFact avec son code d'évaluation
+officiel.
 
-## Résultat
+## Vérification — le système complet
+
+| Système | phrase | abstract |
+|---|---|---|
+| Zéro-shot (FEVER), 2020 | 28,4 | 38,4 |
+| ce système, zéro-shot | 26,6 | 35,3 |
+| **ce système, affiné** | **40,1** | **49,2** |
+| VeriSci (Wadden et al. 2020) | 42,6 | 48,5 |
+| plafond de la récupération | — | 89,7 |
+
+**Égalité statistique avec VeriSci** : 49,2 contre 48,5, intervalle de confiance
+à 95 % [46,2 ; 56,6]. Le système **dépasse** VeriSci sur l'étiquetage seul
+(53,6 contre 51,0) et reste en dessous sur la sélection de phrases (40,1 contre
+42,6).
+
+Détail et méthode : [`docs/rapport.md`](docs/rapport.md) · chiffres :
+[`resultats/verification.json`](resultats/verification.json)
+
+## Récupération
 
 | Système | Publié | Mesuré | Écart |
 |---|---|---|---|
@@ -19,15 +38,14 @@ affirmés.
 
 nDCG@10, 300 requêtes de test, définition `trec_eval`.
 
-**Ce que ça démontre** : un harnais d'évaluation validé par trois reproductions
+**Ce que ça démontre** : un harnais validé par trois reproductions
 indépendantes, dont un modèle de pointe à trois millièmes de son score publié.
 
-**Ce que ça ne démontre pas** : aucun gain sur l'état de l'art. La fusion
-lexicale et le reclassement par cross-encodeur échouent tous deux, et le rapport
-explique pourquoi.
+**Ce que ça ne démontre pas** : aucun gain sur l'état de l'art en récupération.
+La fusion lexicale et le reclassement par cross-encodeur échouent tous deux, et
+le rapport explique pourquoi.
 
-Rapport complet : [`docs/rapport.md`](docs/rapport.md) · chiffres bruts :
-[`resultats/scifact.json`](resultats/scifact.json)
+Chiffres bruts : [`resultats/scifact.json`](resultats/scifact.json)
 
 ## Ce qu'on apprend des deux échecs
 
@@ -50,12 +68,17 @@ le reclasseur essayé ici ne les capte pas.
 
 ```
 src/lexical.py              BM25 Okapi en NumPy, réglages Anserini
+src/verification.py         décision et citation à partir des passages retrouvés
 eval/metriques.py           nDCG@k et Recall@k, définition trec_eval
 eval/bm25_controle.py       point de contrôle : reproduit 0,665 ± 0,02
-eval/significativite.py     bootstrap apparié sur les nDCG par requête
-colab/scifact.ipynb         chaîne complète sur GPU, tous les chiffres du rapport
-resultats/scifact.json      mesures brutes
-docs/rapport.md             rapport d'évaluation
+eval/plafond_verification.py  plafond imposé par la récupération, par profondeur
+eval/significativite.py     bootstrap apparié
+colab/scifact.ipynb         récupération : hybride et reclassement, sur GPU
+colab/verification.ipynb    vérification en zéro-shot
+colab/affinage_v2.ipynb     vérification affinée — les chiffres du rapport
+resultats/scifact.json      mesures de récupération
+resultats/verification.json mesures de vérification
+docs/rapport.md             rapport complet
 ```
 
 ## Installation

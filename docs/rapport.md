@@ -141,3 +141,97 @@ l'ensemble des chiffres de ce rapport.
 - `Alibaba-NLP/gte-large-en-v1.5`, `BAAI/bge-large-en-v1.5`,
   `BAAI/bge-reranker-v2-m3` — fiches MTEB.
 - Distribution BEIR : `public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/`
+
+---
+
+# Vérification d'affirmations — SciFact
+
+Deuxième partie du travail. Le moteur ne rend plus une liste de documents : il
+décide si une affirmation est étayée ou contredite, **en citant les phrases
+exactes** qui fondent la décision.
+
+Évaluation par le **code officiel d'AllenAI**, validé au préalable : nourri de la
+vérité terrain, il rend 1,0 sur les quatre métriques. Jeu `dev`, 300
+affirmations — les étiquettes de `test` sont cachées et inaccessibles hors
+classement en ligne.
+
+## Résultat
+
+| Système | phrase, sél.+étiq. | abstract, étiq.+justif. |
+|---|---|---|
+| Zéro-shot (FEVER), 2020 | 28,4 | 38,4 |
+| ce système, zéro-shot | 26,6 | 35,3 |
+| ce système, affinage v1 | 39,2 | 48,0 |
+| **ce système, affinage v2** | **40,1** | **49,2** |
+| VeriSci, régime ouvert | 42,6 | 48,5 |
+| VeriSci, abstracts fournis | 60,6 | 72,5 |
+| plafond de la récupération | — | 89,7 |
+
+**Égalité statistique avec VeriSci.** 49,2 contre 48,5, mais l'intervalle de
+confiance à 95 % est [46,2 ; 56,6] et contient la valeur publiée. Avec 300
+affirmations, aucune conclusion plus fine n'est possible : c'est une limite du
+jeu, pas du système.
+
+Le détail est plus instructif que le total :
+
+| | ce système | VeriSci |
+|---|---|---|
+| abstract, étiquette seule | **53,6** | 51,0 |
+| abstract, étiquette + justification | 49,2 | 48,5 |
+| phrase, sélection + étiquette | 40,1 | **42,6** |
+
+L'étiquetage est meilleur, la sélection des phrases moins bonne. Les profils de
+précision et de rappel sont inversés — P 40,1 / R 63,6 ici contre P 52,6 / R 45,1
+chez eux : ce système ratisse large et précise peu.
+
+## Architecture
+
+Celle de Wadden et al. : un sélecteur de justifications binaire sur
+`[phrase, SEP, affirmation]`, puis un classifieur d'étiquette sur les phrases
+retenues. Récupération par BM25, top-3.
+
+Deux choix qui s'écartent du papier, et leur effet mesuré :
+
+**Le classifieur part de poids NLI** (MNLI, FEVER, ANLI), dont la tête produit
+déjà *entailment / neutral / contradiction* — soit exactement SUPPORT / NOINFO /
+CONTRADICT. C'est probablement d'où viennent les 53,6 d'étiquetage contre 51,0.
+
+**SciBERT bat DeBERTa-v3-base comme sélecteur**, confirmant le papier : un modèle
+de domaine de 2019 l'emporte sur un modèle généraliste plus récent. DeBERTa-v3-base
+plafonnait à 65,0 de F1 de sélection, sept points sous le repère.
+
+## Deux erreurs de méthode, trouvées par les contrôles par module
+
+Elles méritent d'être consignées : ce sont les contrôles qui les ont révélées,
+pas le résultat final.
+
+**Un raccourci dans les données d'entraînement.** Le classifieur recevait, pour
+les abstracts sans preuve, *les trois premières phrases de l'abstract*. Il a donc
+appris « trois premières phrases = NOINFO » et affichait 94,4 % d'exactitude en
+isolé — contre 75,7 publié — alors que la chaîne complète ne donnait que 48,0. Le
+contrôle mesurait un artefact de construction, pas une compétence.
+
+**Une correction qui a créé un défaut pire.** Première tentative : écarter les
+abstracts où le sélecteur ne propose rien. Résultat, 4 exemples NOINFO sur 477 —
+le classifieur ne pouvait plus apprendre à filtrer. Le repli sur la phrase la
+mieux notée rétablit la répartition, et l'émission devient la décision du
+classifieur, qui est entraîné pour cela.
+
+## Méthode
+
+**`dev` ne sert qu'au rapport.** Seuil, nombre d'abstracts et choix du sélecteur
+sont réglés sur 15 % de `train` tenus à l'écart. Le papier règle son seuil sur
+`dev` (annexe A.1) : la comparaison nous est légèrement défavorable, et c'est
+assumé.
+
+**Le plafond est mesuré avant de construire.** La récupération place la bonne
+preuve dans le top-3 pour 81,3 % des affirmations, soit un plafond de 89,7. Les
+24 points que VeriSci perdait entre son régime ouvert (48,5) et les abstracts
+fournis (72,5) étaient le coût de sa récupération TF-IDF ; ce coût a disparu, et
+le goulot s'est entièrement déplacé vers la vérification.
+
+## Sources
+
+- Wadden et al., *Fact or Fiction: Verifying Scientific Claims*, EMNLP 2020 —
+  tables 3 et 7, jeu dev.
+- Code d'évaluation : `github.com/allenai/scifact`, `verisci/evaluate`.

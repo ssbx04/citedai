@@ -1,0 +1,35 @@
+{
+  "tache": "SciFact, verification d'affirmations scientifiques",
+  "jeu": "dev, 300 affirmations (les etiquettes de test sont cachees)",
+  "evaluateur": "code officiel allenai/scifact, valide a 1,0 sur la verite terrain",
+  "selecteur": "allenai/scibert_scivocab_uncased",
+  "classifieur": "MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli",
+  "recuperation": "BM25 reimplemente, top-3, plafond 89,7",
+  "seuil_selection": 0.3,
+  "k_abstracts": 3,
+  "reglage": "seuil et k balayes sur 15 % de train tenus a l'ecart, jamais sur dev",
+  "mesures_dev": {
+    "sentence_selection":    {"precision": 34.1, "recall": 55.2, "f1": 42.2},
+    "sentence_label":        {"precision": 32.4, "recall": 52.5, "f1": 40.1},
+    "abstract_label_only":   {"precision": 43.7, "recall": 69.4, "f1": 53.6},
+    "abstract_rationalized": {"precision": 40.1, "recall": 63.6, "f1": 49.2}
+  },
+  "progression": {
+    "zero_shot": 35.3,
+    "affinage_v1": 48.0,
+    "affinage_v2": 49.2
+  },
+  "significativite": {
+    "methode": "bootstrap sur les affirmations, 2 000 tirages",
+    "ic95_abstract_f1": [46.2, 56.6],
+    "verisci_dans_intervalle": true,
+    "conclusion": "egalite statistique avec VeriSci, pas de depassement"
+  },
+  "reperes_publies_dev": {
+    "Zero-shot (FEVER) 2020":    {"phrase": 28.4, "abstract": 38.4},
+    "VeriSci, regime ouvert":    {"phrase": 42.6, "abstract": 48.5},
+    "VeriSci, abstracts fournis":{"phrase": 60.6, "abstract": 72.5},
+    "Justifications fournies":   {"phrase": 79.9, "abstract": 83.0}
+  },
+  "conclusion": "Le systeme egale VeriSci (49,2 contre 48,5, non significatif), le depasse sur l'etiquetage seul (53,6 contre 51,0) et reste en dessous sur la selection de phrases (40,1 contre 42,6)."
+}
