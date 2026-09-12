@@ -77,19 +77,6 @@
       </button>
     </form>
 
-    <div class="reglage">
-      <div class="paliers" id="paliers" role="group" aria-label="Précision du modèle"></div>
-      <p class="note" id="note-palier"></p>
-    </div>
-
-    <div class="telechargement" id="telechargement" hidden>
-      <div class="entete">
-        <span id="texte-telechargement"></span>
-        <span id="poids-telechargement"></span>
-      </div>
-      <span class="rail"><i id="barre-telechargement"></i></span>
-    </div>
-
     <div class="exemples" id="exemples"></div>
 
     <div class="travail" id="travail" hidden>
@@ -107,34 +94,31 @@
     <h2>Ce que ce système vaut, mesuré</h2>
     <p>
       Les chiffres viennent du jeu de développement de SciFact, 300 affirmations,
-      évalués par le code officiel d'AllenAI. Trois classifieurs sont disponibles :
-      le plus léger se charge tout seul, les deux autres se téléchargent quand tu
-      les demandes. Le coût de chacun est écrit plutôt que passé sous silence.
+      évalués par le code officiel d'AllenAI. Faire tenir les modèles dans un
+      navigateur a un coût, et il est écrit ici plutôt que passé sous silence.
     </p>
     <dl class="mesures">
       <div class="mesure">
-        <dt>Mode rapide</dt>
-        <dd>37,7<small>83 Mo · chargé d'office</small></dd>
+        <dt>Cette application</dt>
+        <dd>37,7<small>modèle réduit, hors connexion</small></dd>
       </div>
       <div class="mesure">
-        <dt>Mode intermédiaire</dt>
-        <dd>43,6<small>244 Mo · à la demande</small></dd>
-      </div>
-      <div class="mesure">
-        <dt>Mode précis</dt>
-        <dd>49,5<small>435 Mo · à la demande</small></dd>
+        <dt>Gros modèle</dt>
+        <dd>49,5<small>435 M de paramètres</small></dd>
       </div>
       <div class="mesure">
         <dt>VeriSci, 2020</dt>
         <dd>48,5<small>système du papier d'origine</small></dd>
       </div>
+      <div class="mesure">
+        <dt>Poids embarqué</dt>
+        <dd>197<small>mégaoctets, une seule fois</small></dd>
+      </div>
     </dl>
     <p>
-      F1 au niveau abstract, étiquette et justification. Entre le mode rapide et
-      le mode précis il y a 11,8 points d'écart et 352 Mo de différence : c'est
-      l'arbitrage de l'inférence locale sur matériel contraint, et il t'appartient.
-      Quel que soit le mode, la recherche et la décision se font sur l'appareil,
-      sans qu'aucune requête ne sorte.
+      F1 au niveau abstract, étiquette et justification. Le passage du grand
+      modèle au modèle embarqué coûte 11,8 points : c'est le prix de l'inférence
+      locale sur matériel contraint.
     </p>
   </div>
 </footer>
@@ -146,11 +130,6 @@ document.getElementById('interface').hidden = false;
 document.getElementById('etat-modeles').dataset.actif = 'oui';
 document.getElementById('texte-modeles').textContent = 'Prêt, hors connexion';
 document.getElementById('affirmation').value = 'Aspirin reduces the risk of colorectal cancer.';
-document.getElementById('paliers').innerHTML =
-  [['rapide','Rapide',true],['intermediaire','Intermédiaire',false],['precis','Précis',false]]
-  .map(([c,n,a]) => `<button type="button" data-cle="${c}" aria-pressed="${a}">${n}</button>`).join('');
-document.getElementById('note-palier').innerHTML =
-  'F1 de <b>37,7</b> sur SciFact · sur l\'appareil';
 document.getElementById('exemples').innerHTML =
   ['Vitamin D supplementation prevents respiratory infections.',
    'Obesity is unrelated to insulin resistance.']
