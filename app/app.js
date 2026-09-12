@@ -60,22 +60,13 @@ function signalerReseau() {
 
 function afficher(trouves, affirmation) {
   if (trouves.length === 0) {
-    $('resultats').innerHTML = `
-      <div class="rien">
-        <strong>Aucun article ne tranche cette affirmation</strong>
-        Le corpus a été parcouru, mais rien n'y étaye ni ne contredit ce que tu as
-        écrit. C'est une réponse, pas un échec : le système se tait plutôt que
-        d'inventer une source.
-      </div>`;
+    $('resultats').innerHTML =
+      `<div class="rien">Rien dans le corpus ne tranche cette affirmation.</div>`;
     return;
   }
 
-  const pluriel = trouves.length > 1;
   const entete = `
-    <div class="entete-resultats">
-      <p class="eyebrow">${trouves.length} article${pluriel ? 's' : ''} ${pluriel ? 'tranchent' : 'tranche'} la question</p>
-      <p>Affirmation vérifiée : « ${echapper(affirmation)} »</p>
-    </div>`;
+    <p class="eyebrow">${trouves.length} article${trouves.length > 1 ? 's' : ''}</p>`;
 
   const cartes = trouves.map((trouve) => `
     <article class="article">

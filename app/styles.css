@@ -206,14 +206,14 @@ h1, h2, h3 {
   padding: 72px 24px 96px;
 }
 
-.intro { text-align: center; margin-bottom: 44px; }
+.intro { text-align: center; margin-bottom: 40px; }
 
 .intro h1 {
   font-size: var(--text-4xl);
   font-weight: 400;
   line-height: 1.04;
   text-wrap: balance;
-  margin: 18px 0 20px;
+  margin: 16px 0 0;
 }
 
 .intro h1 strong { font-weight: 800; }
@@ -360,10 +360,9 @@ h1, h2, h3 {
 .chargement h2 { font-size: var(--text-2xl); font-weight: 700; margin-bottom: 8px; }
 
 .chargement > p {
-  max-width: 30em;
-  margin: 0 auto 30px;
-  color: var(--text-body);
-  font-size: var(--text-base);
+  margin: 0 auto 28px;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
 }
 
 .pieces { display: grid; gap: 14px; text-align: left; }
@@ -494,15 +493,13 @@ h1, h2, h3 {
 }
 
 .rien {
-  background: var(--surface-raised);
   border: 1px dashed var(--border-default);
   border-radius: var(--radius-lg);
-  padding: 40px 32px;
+  padding: 28px 32px;
   text-align: center;
-  color: var(--text-body);
+  color: var(--text-muted);
+  font-size: var(--text-base);
 }
-
-.rien strong { display: block; color: var(--text-strong); font-family: var(--font-display); font-size: var(--text-lg); margin-bottom: 6px; }
 
 /* ---------- recherche en cours ---------- */
 

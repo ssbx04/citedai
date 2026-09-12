@@ -36,13 +36,8 @@
 <main class="contenu">
 
   <section class="intro">
-    <p class="eyebrow">5 183 articles biomédicaux, hors connexion</p>
+    <p class="eyebrow">5 183 articles biomédicaux · hors connexion</p>
     <h1>Une affirmation, <strong>une preuve citée</strong></h1>
-    <p>
-      Écris une affirmation scientifique. Le système cherche dans le corpus les
-      articles qui permettent de la trancher, décide si elle est étayée ou
-      contredite, et te montre les phrases exactes sur lesquelles il s'appuie.
-    </p>
   </section>
 
   <section class="chargement" id="chargement">
@@ -54,11 +49,8 @@
       </svg>
       <div class="valeur" id="pourcentage">0 %</div>
     </div>
-    <h2>Préparation de l'application</h2>
-    <p>
-      Les modèles et le corpus se téléchargent une seule fois, puis restent sur
-      l'appareil. Ensuite, l'application fonctionne entièrement sans réseau.
-    </p>
+    <h2>Préparation</h2>
+    <p>197 Mo, une seule fois.</p>
     <div class="pieces" id="pieces"></div>
   </section>
 
@@ -91,35 +83,27 @@
 
 <footer class="pied">
   <div class="dedans">
-    <h2>Ce que ce système vaut, mesuré</h2>
-    <p>
-      Les chiffres viennent du jeu de développement de SciFact, 300 affirmations,
-      évalués par le code officiel d'AllenAI. Faire tenir les modèles dans un
-      navigateur a un coût, et il est écrit ici plutôt que passé sous silence.
-    </p>
+    <h2>Mesures</h2>
+    <p>SciFact, jeu de développement, 300 affirmations. F1 abstract, étiquette et justification.</p>
     <dl class="mesures">
       <div class="mesure">
         <dt>Cette application</dt>
-        <dd>37,7<small>modèle réduit, hors connexion</small></dd>
+        <dd>37,7<small>modèle embarqué</small></dd>
       </div>
       <div class="mesure">
-        <dt>Gros modèle</dt>
+        <dt>Sur serveur</dt>
         <dd>49,5<small>435 M de paramètres</small></dd>
       </div>
       <div class="mesure">
-        <dt>VeriSci, 2020</dt>
-        <dd>48,5<small>système du papier d'origine</small></dd>
+        <dt>VeriSci</dt>
+        <dd>48,5<small>Wadden et al., 2020</small></dd>
       </div>
       <div class="mesure">
-        <dt>Poids embarqué</dt>
-        <dd>197<small>mégaoctets, une seule fois</small></dd>
+        <dt>Embarqué</dt>
+        <dd>197<small>mégaoctets</small></dd>
       </div>
     </dl>
-    <p>
-      F1 au niveau abstract, étiquette et justification. Le passage du grand
-      modèle au modèle embarqué coûte 11,8 points : c'est le prix de l'inférence
-      locale sur matériel contraint.
-    </p>
+    <p>Réduire le modèle pour qu'il tienne dans un navigateur coûte 11,8 points.</p>
   </div>
 </footer>
 
