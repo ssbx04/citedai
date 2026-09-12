@@ -1,4 +1,4 @@
-# L'application
+# L'application citedai
 
 Site statique. Aucun serveur applicatif, aucune dépendance à installer : il
 suffit de servir ce dossier.

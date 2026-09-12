@@ -1,4 +1,4 @@
-# Preuve
+# citedai
 
 Ce dépôt contient un système qui vérifie des affirmations scientifiques. On lui
 donne une phrase du genre "l'insuline régule la glycémie", il cherche dans un

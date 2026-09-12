@@ -4,7 +4,7 @@
 set -euo pipefail
 
 VERSION="${VERSION_ASSETS:-v1}"
-DEPOT="${DEPOT_GITHUB:-ssbx04/preuve}"
+DEPOT="${DEPOT_GITHUB:-csroot667/citedai}"
 ARCHIVE="https://github.com/${DEPOT}/releases/download/${VERSION}/assets.tar.gz"
 
 if [ -f app/modeles/selecteur/onnx/model_quantized.onnx ]; then

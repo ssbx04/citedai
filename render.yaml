@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: preuve
+    name: citedai
     runtime: static
     plan: free
     buildCommand: ./outils/recuperer-assets.sh

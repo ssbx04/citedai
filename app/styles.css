@@ -160,7 +160,8 @@ h1, h2, h3 {
 
 .marque .sceau svg { width: 16px; height: 16px; }
 
-.marque span { font-weight: 400; color: var(--text-muted); }
+.marque .mot { letter-spacing: -0.03em; }
+.marque .mot span { font-weight: 300; color: var(--text-muted); }
 
 .etats { display: flex; align-items: center; gap: 10px; }
 
