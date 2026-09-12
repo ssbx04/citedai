@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preuve — vérifier une affirmation scientifique</title>
+<meta name="description" content="Vérifie une affirmation scientifique contre 5183 articles biomédicaux, hors connexion, en citant les phrases exactes.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=Plus+Jakarta+Sans:wght@300..800&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="page">
+
+<header class="barre">
+  <div class="marque">
+    <span class="sceau">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#1d6ae5" stroke-width="2.4"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M20 6 9 17l-5-5"/>
+      </svg>
+    </span>
+    Preuve <span>SciFact</span>
+  </div>
+  <div class="etats">
+    <span class="etat" id="etat-modeles" data-actif="non">
+      <span class="pastille"></span><span id="texte-modeles">Modèles non chargés</span>
+    </span>
+    <span class="etat" id="etat-reseau" data-actif="oui">
+      <span class="pastille"></span><span id="texte-reseau">En ligne</span>
+    </span>
+  </div>
+</header>
+
+<main class="contenu">
+
+  <section class="intro">
+    <p class="eyebrow">5 183 articles biomédicaux, hors connexion</p>
+    <h1>Une affirmation, <strong>une preuve citée</strong></h1>
+    <p>
+      Écris une affirmation scientifique. Le système cherche dans le corpus les
+      articles qui permettent de la trancher, décide si elle est étayée ou
+      contredite, et te montre les phrases exactes sur lesquelles il s'appuie.
+    </p>
+  </section>
+
+  <section class="chargement" id="chargement">
+    <div class="anneau">
+      <svg width="132" height="132" viewBox="0 0 132 132" aria-hidden="true">
+        <circle class="rail" cx="66" cy="66" r="58" fill="none" stroke-width="9"></circle>
+        <circle class="trait" id="trait" cx="66" cy="66" r="58" fill="none" stroke-width="9"
+                stroke-dasharray="364.4" stroke-dashoffset="364.4"></circle>
+      </svg>
+      <div class="valeur" id="pourcentage">0 %</div>
+    </div>
+    <h2>Préparation de l'application</h2>
+    <p>
+      Les modèles et le corpus se téléchargent une seule fois, puis restent sur
+      l'appareil. Ensuite, l'application fonctionne entièrement sans réseau.
+    </p>
+    <div class="pieces" id="pieces"></div>
+  </section>
+
+  <section id="interface" hidden>
+    <form class="saisie" id="formulaire" autocomplete="off">
+      <label class="sr" for="affirmation" hidden>Affirmation à vérifier</label>
+      <input id="affirmation" type="text" placeholder="Écris une affirmation scientifique en anglais" required>
+      <button class="bouton" type="submit" id="lancer">
+        Vérifier
+        <span class="fleche">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M7 17 17 7M9 7h8v8"/>
+          </svg>
+        </span>
+      </button>
+    </form>
+
+    <div class="exemples" id="exemples"></div>
+
+    <div class="travail" id="travail" hidden>
+      <span class="rotor"></span>
+      <span id="texte-travail">Recherche dans le corpus…</span>
+    </div>
+
+    <div class="resultats" id="resultats"></div>
+  </section>
+
+</main>
+
+<footer class="pied">
+  <div class="dedans">
+    <h2>Ce que ce système vaut, mesuré</h2>
+    <p>
+      Les chiffres viennent du jeu de développement de SciFact, 300 affirmations,
+      évalués par le code officiel d'AllenAI. Faire tenir les modèles dans un
+      navigateur a un coût, et il est écrit ici plutôt que passé sous silence.
+    </p>
+    <dl class="mesures">
+      <div class="mesure">
+        <dt>Cette application</dt>
+        <dd>37,7<small>modèle réduit, hors connexion</small></dd>
+      </div>
+      <div class="mesure">
+        <dt>Gros modèle</dt>
+        <dd>49,5<small>435 M de paramètres</small></dd>
+      </div>
+      <div class="mesure">
+        <dt>VeriSci, 2020</dt>
+        <dd>48,5<small>système du papier d'origine</small></dd>
+      </div>
+      <div class="mesure">
+        <dt>Poids embarqué</dt>
+        <dd>197<small>mégaoctets, une seule fois</small></dd>
+      </div>
+    </dl>
+    <p>
+      F1 au niveau abstract, étiquette et justification. Le passage du grand
+      modèle au modèle embarqué coûte 11,8 points : c'est le prix de l'inférence
+      locale sur matériel contraint.
+    </p>
+  </div>
+</footer>
+
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
