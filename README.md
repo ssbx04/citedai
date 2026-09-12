@@ -16,7 +16,7 @@ justification.
 
 | | |
 |---|---|
-| cette application, modèle embarqué | 37,7 |
+| cette app, modèle embarqué | 37,7 |
 | même chaîne, modèle serveur | 49,5 |
 | VeriSci, Wadden et al. 2020 | 48,5 |
 | MultiVerS, état de l'art | 72,5 |
