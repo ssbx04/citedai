@@ -18,10 +18,20 @@ const EXEMPLES = [
   'Obesity is unrelated to insulin resistance.',
 ];
 
+// Trois classifieurs, du plus leger au plus juste. Seul le rapide est
+// telecharge d'office ; les autres attendent que l'utilisateur les demande.
+const PALIERS = [
+  { cle: 'rapide', nom: 'Rapide', f1: 37.7, octets: 82_800_000, dossier: 'classifieur_rapide' },
+  { cle: 'intermediaire', nom: 'Intermédiaire', f1: 43.6, octets: 244_400_000, dossier: 'classifieur_intermediaire' },
+  { cle: 'precis', nom: 'Précis', f1: 49.5, octets: 435_000_000, dossier: 'classifieur_precis' },
+];
+
+const PALIER_PAR_DEFAUT = 'rapide';
+
 const PIECES = [
   { cle: 'corpus', nom: 'Corpus, 5 183 articles', octets: 8_100_000 },
   { cle: 'selecteur', nom: 'Sélecteur de phrases', octets: 111_200_000 },
-  { cle: 'classifieur', nom: 'Classifieur de verdict', octets: 82_800_000 },
+  { cle: 'classifieur', nom: 'Classifieur de verdict, mode rapide', octets: 82_800_000 },
 ];
 
 const total = PIECES.reduce((s, p) => s + p.octets, 0);
@@ -71,8 +81,9 @@ function signalerReseau() {
 
 // ---------------------------------------------------------------- chargement
 
-let corpus, reglages, index, selecteur, tokenizerSelecteur, classifieur, tokenizerClassifieur;
-let versEtiquette;
+let corpus, reglages, index, selecteur, tokenizerSelecteur;
+const charges = new Map();   // cle du palier -> { modele, tokenizer, versEtiquette }
+let palierCourant = PALIER_PAR_DEFAUT;
 
 async function preparer() {
   window.addEventListener('online', signalerReseau);
@@ -113,28 +124,93 @@ async function preparer() {
     }),
   ]);
 
-  [tokenizerClassifieur, classifieur] = await Promise.all([
-    AutoTokenizer.from_pretrained('classifieur'),
-    AutoModelForSequenceClassification.from_pretrained('classifieur', {
-      dtype: 'q8', progress_callback: suivre('classifieur'),
-    }),
-  ]);
-
-  versEtiquette = {};
-  for (const [rang, nom] of Object.entries(classifieur.config.id2label)) {
-    versEtiquette[Number(rang)] = ETIQUETTES[nom.toLowerCase()] ?? nom;
-  }
+  await chargerPalier(PALIER_PAR_DEFAUT, suivre('classifieur'));
 
   index = new BM25(
     corpus.map((a) => `${a.titre} ${a.phrases.join(' ')}`),
     reglages.bm25.k1, reglages.bm25.b,
   );
 
+  dessinerPaliers();
   $('chargement').hidden = true;
   $('interface').hidden = false;
+
+  let prefere = null;
+  try { prefere = localStorage.getItem('palier'); } catch { /* navigation privée */ }
+  if (prefere && prefere !== palierCourant && PALIERS.some((p) => p.cle === prefere)) {
+    changerPalier(prefere);   // instantané si le navigateur l'a déjà en cache
+  }
   $('etat-modeles').dataset.actif = 'oui';
   $('texte-modeles').textContent = 'Prêt, hors connexion';
   $('affirmation').focus();
+}
+
+async function chargerPalier(cle, suiviProgression) {
+  if (charges.has(cle)) return charges.get(cle);
+
+  const palier = PALIERS.find((p) => p.cle === cle);
+  const [tokenizer, modele] = await Promise.all([
+    AutoTokenizer.from_pretrained(palier.dossier),
+    AutoModelForSequenceClassification.from_pretrained(palier.dossier, {
+      dtype: 'q8', progress_callback: suiviProgression,
+    }),
+  ]);
+
+  const versEtiquette = {};
+  for (const [rang, nom] of Object.entries(modele.config.id2label)) {
+    versEtiquette[Number(rang)] = ETIQUETTES[nom.toLowerCase()] ?? nom;
+  }
+
+  charges.set(cle, { modele, tokenizer, versEtiquette });
+  return charges.get(cle);
+}
+
+function dessinerPaliers() {
+  $('paliers').innerHTML = PALIERS.map((p) => `
+    <button type="button" data-cle="${p.cle}"
+            aria-pressed="${p.cle === palierCourant}">${p.nom}</button>`).join('');
+  decrirePalier();
+}
+
+function decrirePalier() {
+  const palier = PALIERS.find((p) => p.cle === palierCourant);
+  const etat = charges.has(palier.cle) ? 'sur l\'appareil' : `${mo(palier.octets)} à télécharger`;
+  $('note-palier').innerHTML =
+    `F1 de <b>${String(palier.f1).replace('.', ',')}</b> sur SciFact · ${etat}`;
+}
+
+async function changerPalier(cle) {
+  if (cle === palierCourant) return;
+  const palier = PALIERS.find((p) => p.cle === cle);
+  const boutons = [...$('paliers').querySelectorAll('button')];
+
+  if (!charges.has(cle)) {
+    boutons.forEach((b) => { b.disabled = true; });
+    $('telechargement').hidden = false;
+    $('texte-telechargement').textContent = `Téléchargement du mode ${palier.nom.toLowerCase()}`;
+
+    try {
+      await chargerPalier(cle, (etat) => {
+        if (etat.status !== 'progress' || !etat.total) return;
+        const part = etat.loaded / etat.total;
+        $('barre-telechargement').style.width = `${part * 100}%`;
+        $('poids-telechargement').textContent =
+          `${mo(part * palier.octets)} / ${mo(palier.octets)}`;
+      });
+    } catch (erreur) {
+      $('texte-telechargement').textContent = `Ce mode n'a pas pu être chargé : ${erreur}`;
+      boutons.forEach((b) => { b.disabled = false; });
+      return;
+    }
+    $('telechargement').hidden = true;
+    $('barre-telechargement').style.width = '0';
+    boutons.forEach((b) => { b.disabled = false; });
+  }
+
+  palierCourant = cle;
+  try { localStorage.setItem('palier', cle); } catch { /* navigation privée */ }
+  boutons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.cle === cle)));
+  decrirePalier();
 }
 
 // ------------------------------------------------------------------ décision
@@ -158,10 +234,11 @@ async function noterPhrases(phrases, affirmation) {
 }
 
 async function trancher(texte, affirmation) {
-  const entrees = tokenizerClassifieur([texte], {
+  const { modele, tokenizer, versEtiquette } = charges.get(palierCourant);
+  const entrees = tokenizer([texte], {
     text_pair: [affirmation], padding: true, truncation: true, max_length: 320,
   });
-  const { logits } = await classifieur(entrees);
+  const { logits } = await modele(entrees);
   const probabilites = repartir(logits.tolist()[0]);
   let meilleur = 0;
   for (let i = 1; i < probabilites.length; i++) {
@@ -245,6 +322,11 @@ function afficher(trouves, affirmation) {
 }
 
 // -------------------------------------------------------------------- départ
+
+$('paliers').addEventListener('click', (evenement) => {
+  const bouton = evenement.target.closest('button');
+  if (bouton && !bouton.disabled) changerPalier(bouton.dataset.cle);
+});
 
 $('exemples').innerHTML = EXEMPLES
   .map((e) => `<button type="button">${echapper(e)}</button>`).join('');
