@@ -1,21 +1,14 @@
-import {
-  env, AutoTokenizer, AutoModelForSequenceClassification,
-} from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.3.3';
-
-import { BM25, definirMotsVides } from './bm25.js';
-
-env.allowLocalModels = true;   // faux par defaut dans un navigateur
-env.allowRemoteModels = false;
-env.localModelPath = './modeles/';
+// Interface seulement. Tout le calcul se passe dans travailleur.js.
 
 const $ = (id) => document.getElementById(id);
 
-const ETIQUETTES = { contradiction: 'CONTRADICT', entailment: 'SUPPORT', neutral: 'NOINFO' };
-
+// De vraies affirmations du jeu de developpement, avec leur preuve dans le
+// corpus. Des affirmations inventees ne trouvent rien, et c'est normal : le
+// corpus ne contient que ces 5 183 articles.
 const EXEMPLES = [
-  'Aspirin reduces the risk of colorectal cancer.',
-  'Vitamin D supplementation prevents respiratory infections.',
-  'Obesity is unrelated to insulin resistance.',
+  'ADAR1 binds to Dicer to cleave pre-miRNA.',
+  '1/2000 in UK have abnormal PrP positivity.',
+  'A total of 1,000 people in the UK are asymptomatic carriers of vCJD infection.',
 ];
 
 const PIECES = [
@@ -24,23 +17,26 @@ const PIECES = [
   { cle: 'classifieur', nom: 'Classifieur de verdict', octets: 82_800_000 },
 ];
 
-const total = PIECES.reduce((s, p) => s + p.octets, 0);
-const avancement = new Map(PIECES.map((p) => [p.cle, 0]));
+const total = PIECES.reduce((somme, piece) => somme + piece.octets, 0);
+const avancement = new Map(PIECES.map((piece) => [piece.cle, 0]));
 
 const mo = (octets) => `${(octets / 1e6).toFixed(0)} Mo`;
 
+const echapper = (texte) => texte.replace(/[&<>"]/g, (caractere) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[caractere]));
+
 function dessinerPieces() {
-  $('pieces').innerHTML = PIECES.map((p) => `
-    <div class="piece" id="piece-${p.cle}">
-      <span class="nom">${p.nom}</span>
-      <span class="poids" id="poids-${p.cle}">0 / ${mo(p.octets)}</span>
-      <span class="rail"><i id="barre-${p.cle}"></i></span>
+  $('pieces').innerHTML = PIECES.map((piece) => `
+    <div class="piece" id="piece-${piece.cle}">
+      <span class="nom">${piece.nom}</span>
+      <span class="poids" id="poids-${piece.cle}">0 / ${mo(piece.octets)}</span>
+      <span class="rail"><i id="barre-${piece.cle}"></i></span>
     </div>`).join('');
 }
 
-function avancer(cle, fraction) {
+function avancer(cle, part) {
   const piece = PIECES.find((p) => p.cle === cle);
-  const borne = Math.max(0, Math.min(1, fraction));
+  const borne = Math.max(0, Math.min(1, part));
   avancement.set(cle, borne);
 
   $(`barre-${cle}`).style.width = `${borne * 100}%`;
@@ -49,18 +45,11 @@ function avancer(cle, fraction) {
 
   let cumul = 0;
   for (const p of PIECES) cumul += avancement.get(p.cle) * p.octets;
-  const part = cumul / total;
+  const fraction = cumul / total;
 
   const circonference = 2 * Math.PI * 58;
-  $('trait').style.strokeDashoffset = String(circonference * (1 - part));
-  $('pourcentage').textContent = `${Math.round(part * 100)} %`;
-}
-
-function suivre(cle) {
-  return (etat) => {
-    if (etat.status === 'progress' && etat.total) avancer(cle, etat.loaded / etat.total);
-    if (etat.status === 'done') avancer(cle, 1);
-  };
+  $('trait').style.strokeDashoffset = String(circonference * (1 - fraction));
+  $('pourcentage').textContent = `${Math.round(fraction * 100)} %`;
 }
 
 function signalerReseau() {
@@ -68,142 +57,6 @@ function signalerReseau() {
   $('etat-reseau').dataset.actif = enLigne ? 'oui' : 'non';
   $('texte-reseau').textContent = enLigne ? 'En ligne' : 'Hors connexion';
 }
-
-// ---------------------------------------------------------------- chargement
-
-let corpus, reglages, index, selecteur, tokenizerSelecteur, classifieur, tokenizerClassifieur;
-let versEtiquette;
-
-async function preparer() {
-  window.addEventListener('online', signalerReseau);
-  window.addEventListener('offline', signalerReseau);
-  signalerReseau();
-  dessinerPieces();
-
-  $('etat-modeles').dataset.actif = 'attente';
-  $('texte-modeles').textContent = 'Chargement…';
-
-  reglages = await (await fetch('donnees/reglages.json')).json();
-  definirMotsVides(reglages.mots_vides);
-
-  const reponse = await fetch('donnees/corpus.json');
-  const lecteur = reponse.body.getReader();
-  const morceaux = [];
-  let recus = 0;
-  for (;;) {
-    const { done, value } = await lecteur.read();
-    if (done) break;
-    morceaux.push(value);
-    recus += value.length;
-    avancer('corpus', recus / 8_100_000);
-  }
-  const octets = new Uint8Array(recus);
-  let place = 0;
-  for (const morceau of morceaux) {
-    octets.set(morceau, place);
-    place += morceau.length;
-  }
-  corpus = JSON.parse(new TextDecoder().decode(octets));
-  avancer('corpus', 1);
-
-  [tokenizerSelecteur, selecteur] = await Promise.all([
-    AutoTokenizer.from_pretrained('selecteur'),
-    AutoModelForSequenceClassification.from_pretrained('selecteur', {
-      dtype: 'q8', progress_callback: suivre('selecteur'),
-    }),
-  ]);
-
-  [tokenizerClassifieur, classifieur] = await Promise.all([
-    AutoTokenizer.from_pretrained('classifieur'),
-    AutoModelForSequenceClassification.from_pretrained('classifieur', {
-      dtype: 'q8', progress_callback: suivre('classifieur'),
-    }),
-  ]);
-
-  versEtiquette = {};
-  for (const [rang, nom] of Object.entries(classifieur.config.id2label)) {
-    versEtiquette[Number(rang)] = ETIQUETTES[nom.toLowerCase()] ?? nom;
-  }
-
-  index = new BM25(
-    corpus.map((a) => `${a.titre} ${a.phrases.join(' ')}`),
-    reglages.bm25.k1, reglages.bm25.b,
-  );
-
-  $('chargement').hidden = true;
-  $('interface').hidden = false;
-  $('etat-modeles').dataset.actif = 'oui';
-  $('texte-modeles').textContent = 'Prêt, hors connexion';
-  $('affirmation').focus();
-}
-
-// ------------------------------------------------------------------ décision
-
-function repartir(logits) {
-  const valeurs = Array.from(logits);
-  const haut = Math.max(...valeurs);
-  const exposants = valeurs.map((v) => Math.exp(v - haut));
-  const somme = exposants.reduce((a, b) => a + b, 0);
-  return exposants.map((e) => e / somme);
-}
-
-async function noterPhrases(phrases, affirmation) {
-  const entrees = tokenizerSelecteur(phrases, {
-    text_pair: phrases.map(() => affirmation),
-    padding: true, truncation: true, max_length: 256,
-  });
-  const { logits } = await selecteur(entrees);
-  const brut = logits.tolist();
-  return brut.map((ligne) => repartir(ligne)[1]);
-}
-
-async function trancher(texte, affirmation) {
-  const entrees = tokenizerClassifieur([texte], {
-    text_pair: [affirmation], padding: true, truncation: true, max_length: 320,
-  });
-  const { logits } = await classifieur(entrees);
-  const probabilites = repartir(logits.tolist()[0]);
-  let meilleur = 0;
-  for (let i = 1; i < probabilites.length; i++) {
-    if (probabilites[i] > probabilites[meilleur]) meilleur = i;
-  }
-  return { etiquette: versEtiquette[meilleur], confiance: probabilites[meilleur] };
-}
-
-function choisirPhrases(notes) {
-  let retenues = notes.map((n, i) => [n, i]).filter(([n]) => n >= reglages.seuil_phrases);
-  if (retenues.length === 0) {
-    const meilleure = notes.indexOf(Math.max(...notes));
-    retenues = [[notes[meilleure], meilleure]];
-  }
-  retenues.sort((a, b) => b[0] - a[0]);
-  return retenues.slice(0, reglages.nb_phrases_max).map(([, i]) => i).sort((a, b) => a - b);
-}
-
-async function verifier(affirmation) {
-  const candidats = index.meilleurs(affirmation, reglages.nb_articles);
-  const trouves = [];
-
-  for (let rang = 0; rang < candidats.length; rang++) {
-    const article = corpus[candidats[rang]];
-    $('texte-travail').textContent =
-      `Lecture de l'article ${rang + 1} sur ${candidats.length}…`;
-
-    const notes = await noterPhrases(article.phrases, affirmation);
-    const indices = choisirPhrases(notes);
-    const texte = indices.map((i) => article.phrases[i]).join(' ');
-    const { etiquette, confiance } = await trancher(texte, affirmation);
-    if (etiquette !== 'NOINFO') {
-      trouves.push({ article, indices, etiquette, confiance });
-    }
-  }
-  return trouves;
-}
-
-// ------------------------------------------------------------------ affichage
-
-const echapper = (t) => t.replace(/[&<>"]/g, (c) =>
-  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 function afficher(trouves, affirmation) {
   if (trouves.length === 0) {
@@ -217,26 +70,26 @@ function afficher(trouves, affirmation) {
     return;
   }
 
-  const mot = trouves.length === 1 ? 'article' : 'articles';
+  const pluriel = trouves.length > 1;
   const entete = `
     <div class="entete-resultats">
-      <p class="eyebrow">${trouves.length} ${mot} ${trouves.length === 1 ? 'tranche' : 'tranchent'} la question</p>
+      <p class="eyebrow">${trouves.length} article${pluriel ? 's' : ''} ${pluriel ? 'tranchent' : 'tranche'} la question</p>
       <p>Affirmation vérifiée : « ${echapper(affirmation)} »</p>
     </div>`;
 
-  const cartes = trouves.map(({ article, indices, etiquette, confiance }) => `
+  const cartes = trouves.map((trouve) => `
     <article class="article">
       <div class="haut">
-        <h3>${echapper(article.titre)}</h3>
-        <span class="verdict" data-type="${etiquette}">
-          ${etiquette === 'SUPPORT' ? 'Étayée' : 'Contredite'} · ${Math.round(confiance * 100)} %
+        <h3>${echapper(trouve.titre)}</h3>
+        <span class="verdict" data-type="${trouve.etiquette}">
+          ${trouve.etiquette === 'SUPPORT' ? 'Étayée' : 'Contredite'} · ${Math.round(trouve.confiance * 100)} %
         </span>
       </div>
       <div class="citations">
-        ${indices.map((i) => `
+        ${trouve.phrases.map((phrase) => `
           <div class="citation">
-            <span class="rang">Phrase ${i + 1}</span>
-            ${echapper(article.phrases[i].trim())}
+            <span class="rang">Phrase ${phrase.rang}</span>
+            ${echapper(phrase.texte)}
           </div>`).join('')}
       </div>
     </article>`).join('');
@@ -244,10 +97,48 @@ function afficher(trouves, affirmation) {
   $('resultats').innerHTML = entete + cartes;
 }
 
+// ---------------------------------------------------------------- travailleur
+
+const travailleur = new Worker('travailleur.js', { type: 'module' });
+let affirmationEnCours = '';
+
+travailleur.onmessage = ({ data }) => {
+  if (data.type === 'progression') {
+    avancer(data.piece, data.part);
+  } else if (data.type === 'etape') {
+    $('texte-travail').textContent = data.texte;
+  } else if (data.type === 'pret') {
+    $('chargement').hidden = true;
+    $('interface').hidden = false;
+    $('etat-modeles').dataset.actif = 'oui';
+    $('texte-modeles').textContent = 'Prêt, hors connexion';
+    $('affirmation').focus();
+  } else if (data.type === 'resultat') {
+    afficher(data.trouves, data.affirmation);
+    $('travail').hidden = true;
+    $('lancer').disabled = false;
+  } else if (data.type === 'erreur') {
+    $('travail').hidden = true;
+    $('lancer').disabled = false;
+    $('chargement').innerHTML =
+      `<h2>Quelque chose a échoué</h2><p>${echapper(data.message)}</p>`;
+    $('chargement').hidden = false;
+  }
+};
+
 // -------------------------------------------------------------------- départ
 
+window.addEventListener('online', signalerReseau);
+window.addEventListener('offline', signalerReseau);
+signalerReseau();
+dessinerPieces();
+
+$('etat-modeles').dataset.actif = 'attente';
+$('texte-modeles').textContent = 'Chargement…';
+travailleur.postMessage({ type: 'preparer' });
+
 $('exemples').innerHTML = EXEMPLES
-  .map((e) => `<button type="button">${echapper(e)}</button>`).join('');
+  .map((exemple) => `<button type="button">${echapper(exemple)}</button>`).join('');
 
 $('exemples').addEventListener('click', (evenement) => {
   if (evenement.target.tagName !== 'BUTTON') return;
@@ -255,29 +146,16 @@ $('exemples').addEventListener('click', (evenement) => {
   $('formulaire').requestSubmit();
 });
 
-$('formulaire').addEventListener('submit', async (evenement) => {
+$('formulaire').addEventListener('submit', (evenement) => {
   evenement.preventDefault();
-  const affirmation = $('affirmation').value.trim();
-  if (!affirmation) return;
+  affirmationEnCours = $('affirmation').value.trim();
+  if (!affirmationEnCours) return;
 
   $('lancer').disabled = true;
   $('resultats').innerHTML = '';
   $('travail').hidden = false;
   $('texte-travail').textContent = 'Recherche dans le corpus…';
-
-  try {
-    afficher(await verifier(affirmation), affirmation);
-  } finally {
-    $('travail').hidden = true;
-    $('lancer').disabled = false;
-  }
-});
-
-preparer().catch((erreur) => {
-  console.error(erreur);
-  $('chargement').innerHTML = `
-    <h2>Le chargement a échoué</h2>
-    <p>${echapper(String(erreur))}</p>`;
+  travailleur.postMessage({ type: 'verifier', affirmation: affirmationEnCours });
 });
 
 if ('serviceWorker' in navigator) {

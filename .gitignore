@@ -4,3 +4,4 @@ __pycache__/
 *.json
 app/modeles/
 app/donnees/
+app/biblio/
