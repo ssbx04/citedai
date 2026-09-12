@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: preuve
+    runtime: static
+    plan: free
+    buildCommand: ./outils/recuperer-assets.sh
+    staticPublishPath: ./app
+    headers:
+      # transformers.js met les modeles en cache lui-meme ; ces fichiers ne
+      # changent jamais pour une version donnee.
+      - path: /modeles/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /biblio/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
