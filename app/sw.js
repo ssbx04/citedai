@@ -1,7 +1,7 @@
 // Met en cache la coquille de l'application et le corpus. Les modèles, eux,
 // sont déjà mis en cache par transformers.js dans le Cache API du navigateur.
 
-const VERSION = 'preuve-2';
+const VERSION = 'preuve-4';
 const COQUILLE = ['./', './index.html', './styles.css', './app.js', './travailleur.js',
                   './bm25.js', './porter.js',
                   './biblio/transformers.js',
