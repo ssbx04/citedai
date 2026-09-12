@@ -2,7 +2,6 @@ services:
   - type: web
     name: citedai
     runtime: static
-    plan: free
     buildCommand: ./outils/recuperer-assets.sh
     staticPublishPath: ./app
     headers:
