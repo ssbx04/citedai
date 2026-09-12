@@ -1,4 +1,4 @@
 data/
-*.json
-!notebooks/*.ipynb
+reference/
 __pycache__/
+*.json
