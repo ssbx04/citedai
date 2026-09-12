@@ -8,7 +8,7 @@ sans réseau.
 Le jeu de données est SciFact (AllenAI, 2020). Les scores sont calculés par le
 script d'évaluation d'AllenAI, pas par le mien : les chiffres ci-dessous et
 ceux des papiers sortent donc du même code. Ce travail prolonge un projet de
-traitement du langage commencé en 2025.
+traitement du langage commencé en 2025...
 
 ## Résultats
 
